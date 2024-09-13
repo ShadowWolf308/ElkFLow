@@ -1,0 +1,59 @@
+{
+	"name": "elk-flow",
+	"version": "0.0.1",
+	"description": "A flow graph using Reactflow for render and ELK for graph generation",
+	"license": "MIT",
+	"author": {
+		"email": "levyvandervalk@gmail.com",
+		"name": "Levy van der Valk"
+	},
+	"keywords": [
+		"react",
+		"node-based UI",
+		"graph",
+		"diagram",
+		"workflow",
+		"react-flow",
+		"xyflow",
+		"ELK"
+	],
+	"type": "module",
+	"files": [
+		"dist"
+	],
+	"main": "dist/elkFlow.umd.js",
+	"module": "dist/elkFlow.js",
+	"types": "dist/index.d.ts",
+	"exports": {
+		"types": "./dist/index.d.ts",
+		"import": "./dist/elkFlow.jsx",
+		"require": "./dist/elkFlow.umd.jsx"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/ShadowWolf308/elkFlow"
+	},
+	"scripts": {
+		"dev": "vite",
+		"build": "tsc && vite build && tsup ./lib/index.ts --dts --dts-only",
+		"preview": "vite preview",
+		"production": "pnpm build && pnpm publish"
+	},
+	"peerDependencies": {
+		"react": "reactflow"
+	},
+	"dependencies": {
+		"reactflow": "^11.11.4",
+		"react": "^18.3.1",
+		"react-dom": "^18.3.1",
+		"elkjs": "^0.9.3"
+	},
+	"devDependencies": {
+		"@types/node": "^20.14.11",
+		"@types/react": "18.3.5",
+		"@types/react-dom": "18.3.0",
+		"tsup": "^6.5.0",
+		"typescript": "^5.4.5",
+		"vite": "^5.2.12"
+	}
+}
