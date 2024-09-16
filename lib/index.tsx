@@ -1,10 +1,10 @@
-import React, { useCallback, useMemo, useRef } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ElkFlowProps } from "./types";
-import ReactFlow, { BaseEdge, EdgeProps, SmoothStepEdge } from "reactflow";
+import ReactFlow, { BaseEdge, Edge, EdgeProps, Node, SmoothStepEdge } from "reactflow";
 
 interface EdgeData extends Object {
-	extra: any;
-	bends: {
+	data: any;
+	elkData: {
 		bendSections: import("elkjs/lib/elk.bundled").ElkEdgeSection[];
 		isDragged: boolean;
 	}
@@ -18,7 +18,7 @@ function ElkStepEdge({
 	data,
 	...rest
 }: EdgeProps<EdgeData>) {
-	const bendSection = useMemo(() => !!data?.bends.bendSections ? data.bends.bendSections[0] : undefined, [data?.bends.bendSections]);
+	const bendSection = useMemo(() => !!data?.elkData.bendSections ? data.elkData.bendSections[0] : undefined, [data?.elkData.bendSections]);
 
 	const edgePath = useMemo(() => {
 		if (!bendSection) {
@@ -92,7 +92,7 @@ function ElkStepEdge({
 		return (
 			<SmoothStepEdge
 				{...rest}
-				data={data?.extra}
+				data={data}
 				sourceX={sourceX}
 				sourceY={sourceY}
 				targetX={targetX}
@@ -142,21 +142,21 @@ export function ElkFlow({
 		elkStep: ElkStepEdge,
 	});
 
-	const buildNodes = useCallback(async () => {
+	const buildNodes = useCallback(async (nodes: Node[], edges: Edge[]): Promise<[Node[], Edge[]]> => {
 		const elk = new (await import("elkjs/lib/elk.bundled")).default();
 
 		const layout = await elk.layout(
 			{
 				id: "graph",
-				children: (nodes || []).map((node) => ({
+				children: nodes.map((node) => ({
 					id: node.id,
 					width: 150,
-					height: 50,
+					height: 35,
 					labels: [{
 						text: node.data.label,
 					}],
 				})),
-				edges: (edges || []).map((edge) => ({
+				edges: edges.map((edge) => ({
 					id: edge.id,
 					sources: [edge.source],
 					targets: [edge.target],
@@ -174,7 +174,7 @@ export function ElkFlow({
 
 		return [
 			layout.children?.map((n) => {
-				const original = (nodes || []).find((node) => node.id === n.id);
+				const original = nodes.find((node) => node.id === n.id);
 
 				if (!original) {
 					throw new Error(`Node ${n.id} not found`);
@@ -186,9 +186,15 @@ export function ElkFlow({
 						x: n.x || original.position.x,
 						y: n.y || original.position.y,
 					},
+					data: {
+						...original.data,
+						elkData: {
+							isDragged: false,
+						},
+					}
 				};
 			}) || [],
-			(edges || []).map((edge) => {
+			edges.map((edge) => {
 				const found = layout.edges?.find((e) => e.id === edge.id);
 
 				if (!found || !found.sections) {
@@ -198,8 +204,8 @@ export function ElkFlow({
 				return {
 					...edge,
 					data: {
-						extra: edge.data,
-						bends: {
+						data: edge.data,
+						elkData: {
 							bendSections: found.sections,
 							isDragged: false,
 						},
@@ -210,18 +216,53 @@ export function ElkFlow({
 		];
 	}, []);
 
+	const [elkNodes, setElkNodes] = useState<Node[]>([]);
+	const [elkEdges, setElkEdges] = useState<Edge[]>([]);
+
+	useEffect(() => {
+		buildNodes(nodes || [], edges || []).then(([nodes, edges]) => {
+			setElkNodes(nodes);
+			setElkEdges(edges);
+		});
+	}, [nodes, edges]);
+
+	const updateNodeOrEdgeData = useCallback((nodeOrEdge: Node | Edge) => {
+		return {
+			...nodeOrEdge,
+			data: nodeOrEdge.data?.data,
+		};
+	}, []);
+
 	return (
 		<ReactFlow
-			// nodes={nodes}
-			// edges={edges}
-			onNodeClick={(e, node) => {
-				
+			nodes={elkNodes}
+			edges={elkEdges}
+			onNodeClick={(e, node) => onNodeClick?.(e, updateNodeOrEdgeData(node) as Node)}
+			onEdgeClick={(e, edge) => onEdgeClick?.(e, updateNodeOrEdgeData(edge) as Edge)}
+			onNodesChange={(changes) => {
+				onNodesChange?.(changes);
 			}}
-			onEdgeClick={(e, edge) => {
-
+			onEdgesChange={(changes) => {
+				onEdgesChange?.(changes);
 			}}
-			// onNodesChange={onNodesChange}
-			// onEdgesChange={onEdgesChange}
+			onNodesDelete={(nodes) => onNodesDelete?.(nodes.map(updateNodeOrEdgeData) as Node[])}
+			onEdgesDelete={(edges) => onEdgesDelete?.(edges.map(updateNodeOrEdgeData) as Edge[])}
+			onNodeContextMenu={(e, node) => onNodeContextMenu?.(e, updateNodeOrEdgeData(node) as Node)}
+			onNodeDoubleClick={(e, node) => onNodeDoubleClick?.(e, updateNodeOrEdgeData(node) as Node)}
+			onNodeDrag={(e, node, nodes) => onNodeDrag?.(e, updateNodeOrEdgeData(node) as Node, nodes.map(updateNodeOrEdgeData) as Node[])}
+			onNodeDragStart={(e, node, nodes) => onNodeDragStart?.(e, updateNodeOrEdgeData(node) as Node, nodes.map(updateNodeOrEdgeData) as Node[])}
+			onNodeDragStop={(e, node, nodes) => onNodeDragStop?.(e, updateNodeOrEdgeData(node) as Node, nodes.map(updateNodeOrEdgeData) as Node[])}
+			onNodeMouseEnter={(e, node) => onNodeMouseEnter?.(e, updateNodeOrEdgeData(node) as Node)}
+			onNodeMouseLeave={(e, node) => onNodeMouseLeave?.(e, updateNodeOrEdgeData(node) as Node)}
+			onNodeMouseMove={(e, node) => onNodeMouseMove?.(e, updateNodeOrEdgeData(node) as Node)}
+			onEdgeContextMenu={(e, edge) => onEdgeContextMenu?.(e, updateNodeOrEdgeData(edge) as Edge)}
+			onEdgeDoubleClick={(e, edge) => onEdgeDoubleClick?.(e, updateNodeOrEdgeData(edge) as Edge)}
+			onEdgeMouseEnter={(e, edge) => onEdgeMouseEnter?.(e, updateNodeOrEdgeData(edge) as Edge)}
+			onEdgeMouseMove={(e, edge) => onEdgeMouseMove?.(e, updateNodeOrEdgeData(edge) as Edge)}
+			onEdgeMouseLeave={(e, edge) => onEdgeMouseLeave?.(e, updateNodeOrEdgeData(edge) as Edge)}
+			onReconnect={(edge, conn) => onReconnect?.(updateNodeOrEdgeData(edge) as Edge, conn)}
+			onReconnectEnd={(e, edge, handleType) => onReconnectEnd?.(e, updateNodeOrEdgeData(edge) as Edge, handleType)}
+			onReconnectStart={(e, edge, handleType) => onReconnectStart?.(e, updateNodeOrEdgeData(edge) as Edge, handleType)}
 			edgeTypes={EDGE_TYPES}
 			{...rest}
 		/>

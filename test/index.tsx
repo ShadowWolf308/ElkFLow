@@ -211,6 +211,8 @@ function Elk() {
 				onContextMenu={(e) => {
 					e.preventDefault();
 				}}
+				nodes={nodes}
+				edges={edges}
 			>
 				<Background
 					color="black"
